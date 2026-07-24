@@ -7,7 +7,10 @@ export function MeterPanel({ meters }: { meters: MeterView[] }) {
         <div className="meter-row" key={m.key}>
           <span className="meter-label">{m.label}</span>
           <div className="meter-track">
-            <div className="meter-fill" style={{ width: `${m.value}%`, background: m.color }} />
+            <div
+              className={`meter-fill${m.previewing ? ' is-preview' : ''}`}
+              style={{ width: `${m.fillWidth}%`, background: m.color }}
+            />
             <div
               className="meter-ghost"
               style={{ left: `${m.ovLeft}%`, width: `${m.ovWidth}%`, background: m.ovColor }}

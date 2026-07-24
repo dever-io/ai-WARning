@@ -38,6 +38,13 @@ export interface MeterView {
   key: MeterKey;
   label: string;
   value: number;
+  /**
+   * Rendered fill width. During a negative preview the fill shrinks to the
+   * target so the at-risk segment pulses over the dark track — a tint over
+   * the bright fill is unreadable.
+   */
+  fillWidth: number;
+  previewing: boolean;
   color: string;
   deltaLabel: string;
   deltaColor: string;
@@ -77,6 +84,8 @@ export function buildMeterViews(meters: Meters, fx: Fx | null): MeterView[] {
       key: d.key,
       label: d.label,
       value,
+      fillWidth: active && raw < 0 ? target : value,
+      previewing: active,
       color: d.danger ? DANGER : ACCENT,
       deltaLabel,
       deltaColor,

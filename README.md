@@ -54,4 +54,5 @@ src/
 
 - Interaction constants come straight from the handoff: swipe threshold **110px**, rotation `dx * 0.05deg`, vertical follow `dy * 0.14`, fly-out `.4s ease-in` (state advances at 390ms), snap-back `.3s cubic-bezier(.2,.8,.2,1)`, meter fill `.55s`.
 - The A/B/C variant switcher from the prototype was dropped per the handoff's production notes; fail states and persistence were added per the same notes.
+- Negative previews retract the fill to the target value so the at-risk segment pulses over the dark track — the handoff's tint-over-the-fill approach was unreadable against the bright fill.
 - The deck loops infinitely (`idx % deck.length`); the day counter advances every 3 choices.

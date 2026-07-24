@@ -144,6 +144,11 @@ button {
   transition: width 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Preview feedback must feel instant; the .55s ease stays for committed changes. */
+.meter-fill.is-preview {
+  transition: width 0.2s ease;
+}
+
 .meter-ghost {
   position: absolute;
   top: 0;
