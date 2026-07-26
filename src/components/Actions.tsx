@@ -1,32 +1,39 @@
-import type { Dir } from '../game/types';
+import type { Dir } from '../../shared/protocol';
 
 interface Props {
+  yesLabel: string;
+  noLabel: string;
+  accent: string;
+  disabled?: boolean;
   onChoose: (dir: Dir) => void;
   onPreview: (dir: Dir | null) => void;
 }
 
-export function ActionButtons({ onChoose, onPreview }: Props) {
+export function Actions({ yesLabel, noLabel, accent, disabled, onChoose, onPreview }: Props) {
   return (
     <div className="actions">
       <button
         type="button"
         className="btn btn-no"
-        aria-label="Refuse (swipe left)"
+        disabled={disabled}
+        aria-label={`${noLabel} (swipe left)`}
         onClick={() => onChoose('no')}
         onMouseEnter={() => onPreview('no')}
         onMouseLeave={() => onPreview(null)}
       >
-        ◀ ABORT
+        ◀ {noLabel}
       </button>
       <button
         type="button"
         className="btn btn-yes"
-        aria-label="Authorize (swipe right)"
+        disabled={disabled}
+        style={{ background: accent, borderColor: accent }}
+        aria-label={`${yesLabel} (swipe right)`}
         onClick={() => onChoose('yes')}
         onMouseEnter={() => onPreview('yes')}
         onMouseLeave={() => onPreview(null)}
       >
-        CONFIRM ▶
+        {yesLabel} ▶
       </button>
     </div>
   );

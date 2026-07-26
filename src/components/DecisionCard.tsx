@@ -6,18 +6,24 @@ import {
   useRef,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { categories } from '../game/data';
-import type { Card, Dir } from '../game/types';
+import type { CardView, Dir } from '../../shared/protocol';
 
-export interface CardStackHandle {
+export interface DecisionCardHandle {
   fly: (dir: Dir) => void;
   isAnimating: () => boolean;
 }
 
+export interface PeekCard {
+  chipLabel: string;
+  chipColor: string;
+  title: string;
+}
+
 interface Props {
-  idx: number;
-  card: Card;
-  next: Card;
+  card: CardView;
+  peek: PeekCard | null;
+  accent: string;
+  danger: string;
   preview: Dir | null;
   onPreview: (dir: Dir | null) => void;
   onResolve: (dir: Dir) => void;
@@ -34,8 +40,8 @@ interface DragState {
   active: boolean;
 }
 
-export const CardStack = forwardRef<CardStackHandle, Props>(function CardStack(
-  { idx, card, next, preview, onPreview, onResolve },
+export const DecisionCard = forwardRef<DecisionCardHandle, Props>(function DecisionCard(
+  { card, peek, accent, danger, preview, onPreview, onResolve },
   ref,
 ) {
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -46,10 +52,12 @@ export const CardStack = forwardRef<CardStackHandle, Props>(function CardStack(
   const stamp = (name: Dir) =>
     nodeRef.current?.querySelector<HTMLElement>(`[data-stamp="${name}"]`) ?? null;
 
-  // A new card slides in with a clean slate after the fly-out.
+  // Every new card starts from a clean slate after the previous one flew off.
   useLayoutEffect(() => {
     const node = nodeRef.current;
     if (!node) return;
+    animRef.current = false;
+    dragRef.current = null;
     node.style.transition = 'none';
     node.style.transform = 'translate(0,0) rotate(0deg)';
     node.style.opacity = '1';
@@ -57,9 +65,9 @@ export const CardStack = forwardRef<CardStackHandle, Props>(function CardStack(
     const no = stamp('no');
     if (yes) yes.style.opacity = '0';
     if (no) no.style.opacity = '0';
-  }, [idx]);
+  }, [card.id, card.scope]);
 
-  // Hovering a button (not dragging) shows the matching stamp at half strength.
+  // Hovering a button (rather than dragging) shows the stamp at half strength.
   useEffect(() => {
     if (animRef.current || dragRef.current?.active) return;
     const yes = stamp('yes');
@@ -94,7 +102,7 @@ export const CardStack = forwardRef<CardStackHandle, Props>(function CardStack(
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
-      // Pointer capture can fail on synthetic events — dragging still works.
+      // Capture can fail on synthetic events; dragging still works without it.
     }
     dragRef.current = { x0: e.clientX, y0: e.clientY, dx: 0, active: true };
     pdirRef.current = null;
@@ -145,22 +153,21 @@ export const CardStack = forwardRef<CardStackHandle, Props>(function CardStack(
     }
   };
 
-  const cardCat = categories[card.cat];
-  const nextCat = categories[next.cat];
-
   return (
     <div className="stack">
-      <div className="card-next" aria-hidden="true">
-        <span className="card-next-cat" style={{ color: nextCat.color }}>
-          {nextCat.label}
-        </span>
-        <div className="card-next-title">{next.title}</div>
-      </div>
+      {peek && (
+        <div className="card-next" aria-hidden="true">
+          <span className="card-next-cat" style={{ color: peek.chipColor }}>
+            {peek.chipLabel}
+          </span>
+          <div className="card-next-title">{peek.title}</div>
+        </div>
+      )}
       <div
         ref={nodeRef}
-        className="card"
+        className={`card${card.scope === 'faction' ? ' card-faction' : ''}`}
         role="group"
-        aria-label={`Dilemma from ${card.src}: ${card.title}`}
+        aria-label={`${card.src}: ${card.title}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -170,17 +177,27 @@ export const CardStack = forwardRef<CardStackHandle, Props>(function CardStack(
         <span className="tick tick-tr" aria-hidden="true" />
         <span className="tick tick-bl" aria-hidden="true" />
         <span className="tick tick-br" aria-hidden="true" />
-        <div className="stamp stamp-yes" data-stamp="yes" aria-hidden="true">
-          CONFIRM
+        <div
+          className="stamp stamp-yes"
+          data-stamp="yes"
+          aria-hidden="true"
+          style={{ borderColor: accent, color: accent }}
+        >
+          {card.yes.label}
         </div>
-        <div className="stamp stamp-no" data-stamp="no" aria-hidden="true">
-          ABORT
+        <div
+          className="stamp stamp-no"
+          data-stamp="no"
+          aria-hidden="true"
+          style={{ borderColor: danger, color: danger }}
+        >
+          {card.no.label}
         </div>
 
         <div className="card-head">
-          <span className="card-chip" style={{ color: cardCat.color }}>
-            <span className="chip-dot" style={{ background: cardCat.color }} />
-            {cardCat.label}
+          <span className="card-chip" style={{ color: card.chipColor }}>
+            <span className="chip-dot" style={{ background: card.chipColor }} />
+            {card.chipLabel}
           </span>
           <span className="card-src">{card.src}</span>
         </div>
@@ -189,9 +206,9 @@ export const CardStack = forwardRef<CardStackHandle, Props>(function CardStack(
           <div className="card-ctx">{card.ctx}</div>
         </div>
         <div className="card-hints">
-          <span>◀ ABORT</span>
+          <span>◀ {card.no.label}</span>
           <span>DRAG · ← →</span>
-          <span>CONFIRM ▶</span>
+          <span>{card.yes.label} ▶</span>
         </div>
       </div>
     </div>
