@@ -45,9 +45,15 @@ const AUTO_RESTART_MS = Number(process.env.AUTO_RESTART_MS ?? 15 * 60_000);
 app.use('/api/*', async (c, next) => {
   if (AUTO_RESTART_MS > 0) {
     const epoch = getEpoch();
-    if (epoch.status === 'ended' && epoch.ended_at && Date.now() - epoch.ended_at > AUTO_RESTART_MS) {
-      console.log('[override] epoch finished long enough ago — seeding a new world');
-      resetWorld();
+    if (epoch.status === 'ended') {
+      const since = Date.now() - (epoch.ended_at ?? 0);
+      // A negative age means the stamp is in the future — a row written before
+      // ended_at moved to wall time. Treat it as stale rather than waiting
+      // forever for a deadline that can never arrive.
+      if (since > AUTO_RESTART_MS || since < 0) {
+        console.log('[override] epoch finished — seeding a new world');
+        resetWorld();
+      }
     }
   }
   await next();
