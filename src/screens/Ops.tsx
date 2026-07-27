@@ -10,7 +10,7 @@ import { formatCountdown } from '../hooks/useNow';
 import type { Dir, GameState, Scope } from '../../shared/protocol';
 
 const BRIEFING =
-  'Three decisions a day, three days, one world. Right authorizes, left refuses — and everyone else is voting too.';
+  'Three decisions a day, three days, one world. Right authorizes, left refuses — and what it costs stays sealed until morning.';
 
 interface Props {
   state: GameState;
@@ -31,12 +31,14 @@ export function Ops({ state, remaining, onVote, onOpenFactions }: Props) {
   // A pending decision from a different scope should never keep a stale preview.
   useEffect(() => setPreview(null), [active?.id, activeScope]);
 
-  const worldFx = active?.scope === 'world' && preview ? active[preview].fx : null;
-  const factionFx = active?.scope === 'faction' && preview ? active[preview].fx : null;
+  // World effects are sealed until the morning report — the server sends no fx
+  // for world cards, so there is nothing to preview here by design.
+  const factionFx =
+    active?.scope === 'faction' && preview ? (active[preview].fx ?? null) : null;
 
   const meterBars = useMemo(
-    () => buildBars(state.meters.map((m) => ({ ...m, danger: m.danger })), worldFx),
-    [state.meters, worldFx],
+    () => buildBars(state.meters.map((m) => ({ ...m, danger: m.danger })), null),
+    [state.meters],
   );
   const statBars = useMemo(
     () =>
@@ -77,8 +79,15 @@ export function Ops({ state, remaining, onVote, onOpenFactions }: Props) {
 
   return (
     <>
-      {/* Pinned: the live preview is useless if the meters scroll out of view. */}
       <div className="meters-sticky">
+        <div className="meters-caption">
+          <span>WORLD · AS OF DAY {state.epoch.day} MORNING</span>
+          {state.sealed > 0 && (
+            <span className="meters-sealed">
+              {state.sealed} decision{state.sealed === 1 ? '' : 's'} sealed
+            </span>
+          )}
+        </div>
         <BarPanel bars={meterBars} />
       </div>
 
@@ -137,7 +146,9 @@ export function Ops({ state, remaining, onVote, onOpenFactions }: Props) {
 
       <div className="legend">
         {active
-          ? 'Drag or hover a button to preview the fallout. Your ballot is one of many — a bloc behind you counts for more.'
+          ? active.scope === 'faction'
+            ? 'Your own bloc you can read. Hover a button to see what the directive does to it.'
+            : 'No numbers on this one — judge it by what the card says. The damage report lands tomorrow morning.'
           : 'The world is still voting. Skip ahead with the dev bar if you do not want to wait.'}
       </div>
     </>

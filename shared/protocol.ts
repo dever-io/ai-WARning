@@ -27,8 +27,13 @@ export interface StatView {
 
 export interface ChoiceView {
   label: string;
-  note: string;
-  fx: Record<string, number>;
+  /** Outcome text — omitted for world cards until the round has resolved. */
+  note?: string;
+  /**
+   * Omitted for world cards: the impact of a world decision stays sealed until
+   * the next morning's report, so it is never sent to the client in advance.
+   */
+  fx?: Record<string, number>;
 }
 
 export interface CardView {
@@ -114,9 +119,29 @@ export interface RoundRecord {
   yes: number;
   no: number;
   mandate: number;
+  /** True once the morning report for this round's day has landed. */
+  reported: boolean;
+  /** Empty while the round is still sealed. */
   fx: Record<string, number>;
-  meters: Record<MeterKey, number>;
   myVote: Dir | null;
+}
+
+export interface BriefingMeter {
+  key: MeterKey;
+  label: string;
+  danger: boolean;
+  before: number;
+  after: number;
+}
+
+/** The overnight reveal: what yesterday's decisions actually cost. */
+export interface BriefingView {
+  /** The day that just began. */
+  day: number;
+  /** The day being reported on. */
+  coveredDay: number;
+  meters: BriefingMeter[];
+  rounds: RoundRecord[];
 }
 
 export interface EndingView {
@@ -146,7 +171,10 @@ export interface GameState {
     roundMs: number;
     population: number;
   };
+  /** The world as of this morning — today's decisions are not reflected yet. */
   meters: MeterView[];
+  /** Resolved rounds today whose impact has not been reported. */
+  sealed: number;
   world: {
     card: CardView | null;
     myVote: Dir | null;
@@ -155,6 +183,8 @@ export interface GameState {
   faction: MyFactionView | null;
   /** Set once every open decision for this round has been filed. */
   standby: boolean;
+  /** Present until the player acknowledges the morning report. */
+  briefing: BriefingView | null;
   history: RoundRecord[];
   ending: EndingView | null;
   devTools: boolean;

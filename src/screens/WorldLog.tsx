@@ -19,6 +19,7 @@ export function WorldLog({ state }: { state: GameState }) {
           <h2>DECISION LOG</h2>
           <span className="panel-note">
             {state.history.length} of {state.epoch.roundsTotal} resolved
+            {state.sealed > 0 ? ` · ${state.sealed} sealed` : ''}
           </span>
         </div>
         {state.history.length === 0 ? (
@@ -86,13 +87,17 @@ function LogRow({ record }: { record: RoundRecord }) {
         )}
       </div>
       <div className="log-note">{record.note}</div>
-      <div className="log-fx">
-        {Object.entries(record.fx).map(([key, delta]) => (
-          <span key={key} style={{ color: fxColor(key, delta) }}>
-            {key.toUpperCase()} {delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}
-          </span>
-        ))}
-      </div>
+      {record.reported ? (
+        <div className="log-fx">
+          {Object.entries(record.fx).map(([key, delta]) => (
+            <span key={key} style={{ color: fxColor(key, delta) }}>
+              {key.toUpperCase()} {delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className="log-sealed">IMPACT SEALED · REPORTED TOMORROW MORNING</div>
+      )}
     </li>
   );
 }

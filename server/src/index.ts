@@ -9,6 +9,7 @@ import type { Context, Next } from 'hono';
 import { db, tx } from './db.ts';
 import { CREEDS } from './content.ts';
 import {
+  dayOf,
   epochNow,
   getEpoch,
   openRound,
@@ -126,6 +127,23 @@ app.post('/api/vote', auth, async (c) => {
     .run(epoch.id, round, scope, user.faction_id ?? null, user.id, dir, Date.now());
   if (result.changes === 0) return c.json({ error: 'Ballot already filed for this round.' }, 409);
 
+  return c.json(buildState(getEpoch(), user));
+});
+
+/* ---------------------------------------------------------- morning report */
+
+app.post('/api/briefing/ack', auth, (c) => {
+  resolveDue();
+  const epoch = getEpoch();
+  const day = dayOf(openRound(epoch, epochNow(epoch)));
+  db.prepare('UPDATE users SET seen_day = ? WHERE id = ? AND seen_day < ?').run(
+    day,
+    c.get('user').id,
+    day,
+  );
+  const user = db
+    .prepare('SELECT * FROM users WHERE id = ?')
+    .get(c.get('user').id) as unknown as UserRow;
   return c.json(buildState(getEpoch(), user));
 });
 

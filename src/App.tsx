@@ -3,6 +3,7 @@ import { getToken } from './api/client';
 import { DevBar, Hud, Nav, type Tab } from './components/Chrome';
 import { useGameState } from './hooks/useGameState';
 import { useNow } from './hooks/useNow';
+import { Briefing } from './screens/Briefing';
 import { Ending } from './screens/Ending';
 import { Factions } from './screens/Factions';
 import { Ops } from './screens/Ops';
@@ -20,12 +21,15 @@ function Game({ onSignedOut }: { onSignedOut: () => void }) {
   const [tab, setTab] = useState<Tab>('ops');
   const [busy, setBusy] = useState(false);
   const now = useNow();
-  const { state, skew, error, loading, refresh, vote, skip, reset } = game;
+  const { state, skew, error, loading, refresh, vote, ackBriefing, skip, reset } = game;
 
-  // The epoch closing is the moment worth interrupting for.
+  // The epoch closing and the morning report both deserve the front screen.
   useEffect(() => {
     if (state?.epoch.status === 'ended') setTab('ops');
   }, [state?.epoch.status]);
+  useEffect(() => {
+    if (state?.briefing) setTab('ops');
+  }, [state?.briefing?.coveredDay]);
 
   const runDev = useCallback(
     async (fn: () => Promise<void>) => {
@@ -87,6 +91,12 @@ function Game({ onSignedOut }: { onSignedOut: () => void }) {
         {tab === 'ops' &&
           (ended && state.ending ? (
             <Ending ending={state.ending} onReset={() => void runDev(reset)} />
+          ) : state.briefing ? (
+            <Briefing
+              briefing={state.briefing}
+              busy={busy}
+              onContinue={() => void runDev(ackBriefing)}
+            />
           ) : (
             <Ops
               state={state}

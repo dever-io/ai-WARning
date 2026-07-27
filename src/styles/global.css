@@ -265,6 +265,131 @@ input {
   font-variant-numeric: tabular-nums;
 }
 
+.meters-caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 7px;
+  font: 500 8.5px/1 'JetBrains Mono', monospace;
+  letter-spacing: 0.18em;
+  color: #59626e;
+}
+
+.meters-sealed {
+  color: #f4b23e;
+}
+
+/* ---------- morning report ---------- */
+
+.report {
+  position: relative;
+  background: #12161c;
+  border: 1px solid #3a424d;
+  box-shadow: 0 26px 60px -26px rgba(0, 0, 0, 0.85);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: consIn 0.45s ease both;
+}
+
+.report-tag {
+  font: 600 10px/1 'JetBrains Mono', monospace;
+  letter-spacing: 0.3em;
+  color: #f4b23e;
+}
+
+.report-title {
+  margin: 0;
+  font: 700 25px/1.28 'JetBrains Mono', monospace;
+  color: #f3f6fa;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+
+.report-sub {
+  margin: 14px 0 0;
+  font: 400 13px/1.6 'JetBrains Mono', monospace;
+  color: #8791a0;
+  text-wrap: pretty;
+}
+
+.report-meters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.report-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Slow enough to read as a verdict landing, not a value flicking over. */
+.report-fill {
+  transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.report-delta {
+  width: 34px;
+  font: 700 12px/1 'JetBrains Mono', monospace;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-value {
+  width: 26px;
+  font: 400 12px/1 'JetBrains Mono', monospace;
+  color: #e6ecf3;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.report-log li {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid #1d232b;
+}
+
+.report-log li:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.report-log-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font: 500 9.5px/1.4 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
+}
+
+.report-log-title {
+  font: 600 12.5px/1.4 'JetBrains Mono', monospace;
+  color: #d5dce6;
+  text-wrap: pretty;
+}
+
+.log-sealed {
+  font: 500 9px/1.4 'JetBrains Mono', monospace;
+  letter-spacing: 0.16em;
+  color: #6b7686;
+}
+
 /* ---------- card stack ---------- */
 
 .stack {

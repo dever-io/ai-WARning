@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_bot      INTEGER NOT NULL DEFAULT 0,
   persona     TEXT,
   faction_id  INTEGER REFERENCES factions(id) ON DELETE SET NULL,
+  seen_day    INTEGER NOT NULL DEFAULT 1,
   created_at  INTEGER NOT NULL
 );
 
@@ -92,6 +93,16 @@ CREATE TABLE IF NOT EXISTS bot_rounds (
   PRIMARY KEY (epoch_id, round)
 );
 `);
+
+/** Adds a column to an already-created table on an existing database file. */
+function ensureColumn(table: string, column: string, definition: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+  }
+}
+
+ensureColumn('users', 'seen_day', 'seen_day INTEGER NOT NULL DEFAULT 1');
 
 export function tx<T>(fn: () => T): T {
   db.exec('BEGIN IMMEDIATE');

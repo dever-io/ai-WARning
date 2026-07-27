@@ -25,12 +25,15 @@ import {
 import {
   ROUNDS_TOTAL,
   DAYS,
+  CHOICES_PER_DAY,
+  type BriefingView,
   type CardView,
   type Dir,
   type EndingView,
   type FactionMember,
   type FactionSummary,
   type GameState,
+  type MeterKey,
   type MeterView,
   type MyFactionView,
   type RoundRecord,
@@ -50,6 +53,34 @@ function metersOf(epoch: EpochRow): MeterView[] {
     pln: epoch.pln,
   };
   return METERS.map((m) => ({ key: m.key, label: m.label, value: raw[m.key], danger: m.danger }));
+}
+
+/** Meter values recorded right after `round` resolved. */
+function snapshotAfter(epoch: EpochRow, round: number): Record<MeterKey, number> | null {
+  if (round < 0) {
+    return Object.fromEntries(METERS.map((m) => [m.key, m.start])) as Record<MeterKey, number>;
+  }
+  const row = db
+    .prepare('SELECT meters FROM round_results WHERE epoch_id = ? AND round = ?')
+    .get(epoch.id, round) as unknown as { meters: string } | undefined;
+  return row ? (JSON.parse(row.meters) as Record<MeterKey, number>) : null;
+}
+
+/**
+ * The world as the public last saw it: the snapshot taken at the close of the
+ * previous day. Today's resolved rounds have moved the real meters, but that
+ * only surfaces in tomorrow's report.
+ */
+function reportedMeters(epoch: EpochRow, day: number): MeterView[] {
+  const snap = snapshotAfter(epoch, (day - 1) * CHOICES_PER_DAY - 1);
+  // A missing snapshot would mean hiding nothing; show reality rather than lie.
+  if (!snap) return metersOf(epoch);
+  return METERS.map((m) => ({
+    key: m.key,
+    label: m.label,
+    value: snap[m.key],
+    danger: m.danger,
+  }));
 }
 
 function botBallots(epoch: EpochRow, round: number, scope: string, factionId?: number): number {
@@ -72,6 +103,11 @@ function revealFraction(epoch: EpochRow, round: number, now: number): number {
   return Math.max(0.08, Math.min(1, (elapsed / epoch.round_ms) * 1.25));
 }
 
+/**
+ * Deliberately ships no `fx` and no outcome text: a world decision is made on
+ * what the card says, not on a numeric preview. The impact lands in the morning
+ * report, so it must not reach the client early.
+ */
 function worldCardView(round: number): CardView {
   const card = worldCardAt(round);
   const cat = CATEGORIES[card.cat];
@@ -83,8 +119,8 @@ function worldCardView(round: number): CardView {
     ctx: card.ctx,
     chipLabel: cat.label,
     chipColor: cat.color,
-    yes: { label: card.yesLabel, note: card.yes.note, fx: card.yes.fx as Record<string, number> },
-    no: { label: card.noLabel, note: card.no.note, fx: card.no.fx as Record<string, number> },
+    yes: { label: card.yesLabel },
+    no: { label: card.noLabel },
   };
 }
 
@@ -171,7 +207,7 @@ function rosterOf(faction: FactionRow, epoch: EpochRow, round: number): FactionM
   }));
 }
 
-function historyFor(epoch: EpochRow, userId: number): RoundRecord[] {
+function historyFor(epoch: EpochRow, userId: number, currentDay: number): RoundRecord[] {
   const rows = db
     .prepare(
       `SELECT r.round, r.result, r.yes, r.no, r.mandate, r.fx, r.meters,
@@ -193,12 +229,16 @@ function historyFor(epoch: EpochRow, userId: number): RoundRecord[] {
     my_vote: Dir | null;
   }>;
 
+  const ended = epoch.status === 'ended';
   return rows.map((r) => {
     const card = worldCardAt(r.round);
     const cat = CATEGORIES[card.cat];
+    const day = dayOf(r.round);
+    // Today's numbers stay sealed until the next morning's report.
+    const reported = ended || day < currentDay;
     return {
       round: r.round,
-      day: dayOf(r.round),
+      day,
       slot: slotOf(r.round),
       title: card.title,
       src: card.src,
@@ -210,11 +250,43 @@ function historyFor(epoch: EpochRow, userId: number): RoundRecord[] {
       yes: r.yes,
       no: r.no,
       mandate: r.mandate,
-      fx: JSON.parse(r.fx),
-      meters: JSON.parse(r.meters),
+      reported,
+      fx: reported ? JSON.parse(r.fx) : {},
       myVote: r.my_vote ?? null,
     };
   });
+}
+
+function briefingFor(
+  epoch: EpochRow,
+  user: UserRow,
+  currentDay: number,
+  history: RoundRecord[],
+): BriefingView | null {
+  if (epoch.status === 'ended' || currentDay <= 1 || user.seen_day >= currentDay) return null;
+
+  const covered = currentDay - 1;
+  const first = (covered - 1) * CHOICES_PER_DAY;
+  const last = first + CHOICES_PER_DAY - 1;
+  const rounds = history.filter((r) => r.round >= first && r.round <= last);
+  if (rounds.length === 0) return null;
+
+  const before = snapshotAfter(epoch, first - 1);
+  const after = snapshotAfter(epoch, last);
+  if (!before || !after) return null;
+
+  return {
+    day: currentDay,
+    coveredDay: covered,
+    meters: METERS.map((m) => ({
+      key: m.key,
+      label: m.label,
+      danger: m.danger,
+      before: before[m.key],
+      after: after[m.key],
+    })),
+    rounds,
+  };
 }
 
 function endingFor(epoch: EpochRow, user: UserRow, history: RoundRecord[]): EndingView | null {
@@ -334,7 +406,9 @@ export function buildState(epoch: EpochRow, user: UserRow): GameState {
   ).n;
 
   const worldVote = ended ? null : myVote(epoch, round, user.id, 'world');
-  const history = historyFor(epoch, user.id);
+  const day = dayOf(round);
+  const history = historyFor(epoch, user.id, day);
+  const sealed = ended ? 0 : history.filter((r) => !r.reported).length;
 
   return {
     now,
@@ -352,10 +426,12 @@ export function buildState(epoch: EpochRow, user: UserRow): GameState {
       roundMs: epoch.round_ms,
       population,
     },
-    meters: metersOf(epoch),
+    meters: ended ? metersOf(epoch) : reportedMeters(epoch, day),
+    sealed,
     world: { card: ended ? null : worldCardView(round), myVote: worldVote, tally: worldTally },
     faction,
     standby: !ended && worldVote !== null && (!faction || faction.myVote !== null),
+    briefing: briefingFor(epoch, user, day, history),
     history,
     ending: endingFor(epoch, user, history),
     devTools: DEV_TOOLS,

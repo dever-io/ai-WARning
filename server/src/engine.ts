@@ -32,6 +32,7 @@ export interface UserRow {
   is_bot: number;
   persona: string | null;
   faction_id: number | null;
+  seen_day: number;
 }
 
 export interface FactionRow {

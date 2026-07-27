@@ -12,6 +12,7 @@ export interface GameApi {
   loading: boolean;
   refresh: () => Promise<void>;
   vote: (scope: Scope, dir: Dir) => Promise<void>;
+  ackBriefing: () => Promise<void>;
   skip: (rounds?: number) => Promise<void>;
   reset: () => Promise<void>;
   onSignedOut: () => void;
@@ -77,6 +78,14 @@ export function useGameState(onSignedOut: () => void): GameApi {
     [absorb, handle, refresh],
   );
 
+  const ackBriefing = useCallback(async () => {
+    try {
+      absorb(await post<GameState>('/briefing/ack'));
+    } catch (err) {
+      handle(err);
+    }
+  }, [absorb, handle]);
+
   const skip = useCallback(
     async (rounds = 1) => {
       try {
@@ -98,5 +107,5 @@ export function useGameState(onSignedOut: () => void): GameApi {
     }
   }, [handle, refresh]);
 
-  return { state, skew, error, loading, refresh, vote, skip, reset, onSignedOut };
+  return { state, skew, error, loading, refresh, vote, ackBriefing, skip, reset, onSignedOut };
 }

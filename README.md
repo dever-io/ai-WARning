@@ -19,11 +19,19 @@ Pick a callsign, and you're in. No password, no email — the callsign only sepa
 
 1. **The world card.** Everyone votes yes/no. The majority wins; the losing side gets nothing.
 2. **Your bloc's card.** If you're in a faction, you also vote on an internal directive — who to admit, what to leak, whether to bind members by oath.
-3. **The count closes** on a timer. Effects are applied, the meters move, and the next choice opens.
+3. **The count closes** on a timer. Effects are applied, and the next choice opens.
 
 Each round's effects scale with the **mandate** — how lopsided the vote was. A 3% margin barely moves the needle; a landslide lands at full force.
 
-**Controls:** drag the card, click the buttons, or use **← →**. Dragging past ±18px or hovering a button previews the fallout live on the meters before you commit.
+**Controls:** drag the card, click the buttons, or use **← →**.
+
+### You vote blind
+
+The world's meters only ever show **where things stood this morning**. Decisions made today land on the real world immediately, but nothing on your dashboard moves — the board just counts them as *sealed*. At the start of the next day a **morning report** opens with the whole day's damage in one go: before, after, and what each decision cost.
+
+So there is no optimising against numbers. You judge a dilemma by what the card says and by which way the crowd is leaning, and you find out in the morning whether you were right. The server enforces this rather than the UI hiding it: a world card's payload contains no effect values at all, so there is nothing to read off the network tab either.
+
+Your **own bloc** is the exception — hovering a faction directive still previews what it does to your cohesion, influence and doctrine. You run that organisation; it is the world you cannot see through.
 
 ## Meters and endings
 
@@ -84,6 +92,7 @@ All routes need `Authorization: Bearer <token>` except `POST /api/session`.
 | `POST /api/session` | Claim a callsign, get a token |
 | `GET /api/state` | Everything the client renders — epoch, meters, cards, tallies, bloc, history, ending |
 | `POST /api/vote` | Cast a ballot (`{scope: "world" \| "faction", dir: "yes" \| "no"}`) |
+| `POST /api/briefing/ack` | Acknowledge the morning report and start the day |
 | `GET /api/factions` | Bloc list with standings |
 | `POST /api/factions` | Found a bloc |
 | `POST /api/factions/join` `/leave` | Membership |
@@ -109,7 +118,7 @@ src/
   hooks/               # polled server state, tick clock
   game/bars.ts         # meter/stat render model incl. live preview
   components/          # DecisionCard, BarPanel, TallyBar, Actions, Chrome
-  screens/             # SignIn, Ops, Factions, WorldLog, Ending
+  screens/             # SignIn, Ops, Briefing, Factions, WorldLog, Ending
   styles/global.css    # design tokens from the handoff
 ```
 
@@ -118,8 +127,8 @@ The server runs TypeScript directly on Node's native type stripping and uses the
 ## Design notes
 
 - Interaction constants come from the handoff: swipe threshold 110px, rotation `dx * 0.05deg`, vertical follow `dy * 0.14`, fly-out `.4s ease-in` (state advances at 390ms), snap-back `.3s cubic-bezier(.2,.8,.2,1)`, meter fill `.55s`.
-- Negative previews retract the fill to the target so the at-risk slice pulses over the dark track. The handoff's tint-over-the-fill approach was invisible against the bright fill.
-- The meter panel is pinned to the top of the board — a live preview you have to scroll to see is not a preview.
+- The handoff's live consequence preview survives only on faction directives; the world's numbers are sealed until morning. Where it does run, negative previews retract the fill to the target so the at-risk slice pulses over the dark track — the handoff's tint-over-the-fill approach was invisible against the bright fill.
+- The meter panel is pinned to the top of the board, captioned with the morning it reflects.
 - Faction UI runs on a cooler accent (`#8fa2ff`) so internal business never reads as a world decision.
 - The A/B/C variant switcher from the prototype was dropped, per the handoff's production notes.
 
