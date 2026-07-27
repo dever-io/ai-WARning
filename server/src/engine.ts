@@ -452,9 +452,11 @@ function resolveFactions(epoch: EpochRow, round: number, blocs: Bloc[], worldRes
 }
 
 function endEpoch(epoch: EpochRow, meters: Meters, endingKey: string): void {
+  // Real wall time, not the (skippable) epoch clock: this timestamp drives the
+  // auto-restart, which must not be thrown off by a dev skip.
   db.prepare(`UPDATE epochs SET status = 'ended', ending_key = ?, ended_at = ? WHERE id = ?`).run(
     endingKey,
-    epochNow(epoch),
+    Date.now(),
     epoch.id,
   );
   void meters;

@@ -36,7 +36,20 @@ if (bootstrap()) {
 type Env = { Variables: { user: UserRow } };
 const app = new Hono<Env>();
 
+// A finished epoch would leave a shared link permanently showing someone else's
+// ending. Once it has been over long enough for anyone to have read the result,
+// the world seeds itself again. Sessions are wiped with it, so players simply
+// land back on the sign-in screen. Set to 0 to keep a finished world forever.
+const AUTO_RESTART_MS = Number(process.env.AUTO_RESTART_MS ?? 15 * 60_000);
+
 app.use('/api/*', async (c, next) => {
+  if (AUTO_RESTART_MS > 0) {
+    const epoch = getEpoch();
+    if (epoch.status === 'ended' && epoch.ended_at && Date.now() - epoch.ended_at > AUTO_RESTART_MS) {
+      console.log('[override] epoch finished long enough ago — seeding a new world');
+      resetWorld();
+    }
+  }
   await next();
   c.header('Cache-Control', 'no-store');
 });

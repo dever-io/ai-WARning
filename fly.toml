@@ -9,6 +9,9 @@ primary_region = 'ams'
   # Longer than the 90s local default so a visitor is not rushed; the epoch
   # still runs its course in under half an hour.
   ROUND_MS = '180000'
+  # A shared link must not stay stuck on a finished epoch. Fifteen minutes is
+  # long enough to read the ending, after which the world seeds itself again.
+  AUTO_RESTART_MS = '900000'
 
 [http_service]
   internal_port = 8080
