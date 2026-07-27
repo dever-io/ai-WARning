@@ -1,0 +1,28 @@
+app = 'ai-warning-override'
+primary_region = 'ams'
+
+[build]
+
+[env]
+  PORT = '8080'
+  DB_PATH = '/data/override.db'
+  # Longer than the 90s local default so a visitor is not rushed; the epoch
+  # still runs its course in under half an hour.
+  ROUND_MS = '180000'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_start_machines = true
+  # SQLite lives on a single volume, so the machine must not stop or scale out.
+  auto_stop_machines = 'off'
+  min_machines_running = 1
+  processes = ['app']
+
+[mounts]
+  source = 'override_data'
+  destination = '/data'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

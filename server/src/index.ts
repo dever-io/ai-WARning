@@ -307,6 +307,9 @@ app.route('/api/dev', dev);
 
 /* ------------------------------------------------------- static (prod mode) */
 
+// An unmatched API path must 404, not fall through to the SPA shell below.
+app.all('/api/*', (c) => c.json({ error: 'No such endpoint.' }, 404));
+
 const distDir = resolve(process.cwd(), 'dist');
 if (existsSync(distDir)) {
   app.use('/assets/*', serveStatic({ root: './dist' }));
@@ -314,6 +317,6 @@ if (existsSync(distDir)) {
   app.get('*', serveStatic({ path: './dist/index.html' }));
 }
 
-serve({ fetch: app.fetch, port: PORT }, (info) => {
-  console.log(`[override] api listening on http://localhost:${info.port}`);
+serve({ fetch: app.fetch, port: PORT, hostname: '0.0.0.0' }, (info) => {
+  console.log(`[override] listening on 0.0.0.0:${info.port}`);
 });
