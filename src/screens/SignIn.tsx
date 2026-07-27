@@ -22,7 +22,6 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
 
   return (
     <div className="screen">
-      <div className="grid-overlay" aria-hidden="true" />
       <main className="board board-narrow">
         <header className="hud">
           <span className="hud-counter">OPERATIONS ACCESS</span>

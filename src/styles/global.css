@@ -9,15 +9,22 @@ body {
   margin: 0;
 }
 
-html {
-  overflow-x: hidden;
-}
-
+/* No `overflow-x: hidden` here on purpose: it masks real overflow instead of
+   fixing it, and it perturbs how the fixed background and grid overlay paint
+   while scrolling. Every screen is audited to fit its column instead. */
 body {
-  /* On body rather than .screen: a fixed-attachment background on a scrolling
-     container repaints badly against the fixed grid overlay. */
-  background: #07090c radial-gradient(120% 90% at 50% 0%, #12161d 0%, #0b0d10 55%, #08090c 100%)
-    no-repeat fixed;
+  /* Everything here scrolls with the document on purpose. Both a `position:
+     fixed` overlay and `background-attachment: fixed` left the top of the
+     viewport unpainted once the page scrolled; anchoring to the document
+     avoids the viewport-anchored paint entirely. The glow is sized to one
+     viewport so it stays a top-of-page light rather than stretching. */
+  background-color: #07090c;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    radial-gradient(120% 90% at 50% 0%, #12161d 0%, #0b0d10 55%, #08090c 100%);
+  background-size: 44px 44px, 44px 44px, 100% 100vh;
+  background-repeat: repeat, repeat, no-repeat;
+  background-position: 0 0, 0 0, 50% 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overscroll-behavior: none;
@@ -67,15 +74,6 @@ input {
   flex-direction: column;
   align-items: center;
   padding: 26px 20px 88px;
-}
-
-.grid-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
-  background-size: 44px 44px;
 }
 
 .board {
@@ -516,6 +514,7 @@ input {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  flex: none;
   font: 600 10.5px/1 'JetBrains Mono', monospace;
   letter-spacing: 0.15em;
 }
@@ -523,10 +522,12 @@ input {
 .chip-dot {
   width: 7px;
   height: 7px;
+  flex: none;
 }
 
 .card-src {
-  font: 500 10px/1 'JetBrains Mono', monospace;
+  min-width: 0;
+  font: 500 10px/1.3 'JetBrains Mono', monospace;
   letter-spacing: 0.1em;
   color: #616b78;
   text-align: right;
@@ -571,14 +572,20 @@ input {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .faction-inline-name {
-  font: 700 11px/1 'JetBrains Mono', monospace;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 11px/1.3 'JetBrains Mono', monospace;
   letter-spacing: 0.14em;
 }
 
 .faction-inline-meta {
+  flex: none;
   font: 500 9.5px/1 'JetBrains Mono', monospace;
   letter-spacing: 0.1em;
   color: #616b78;
@@ -819,9 +826,20 @@ input {
   padding: 9px 11px;
   background: #0f1319;
   border: 1px solid #1d232b;
-  font: 600 10px/1 'JetBrains Mono', monospace;
+  font: 600 10px/1.3 'JetBrains Mono', monospace;
   letter-spacing: 0.12em;
   color: #8b95a3;
+}
+
+.standby-row > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.standby-row > span:last-child {
+  flex: none;
 }
 
 .standby-cta {
@@ -870,6 +888,7 @@ input {
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .panel-head h2 {
@@ -881,6 +900,7 @@ input {
 }
 
 .panel-note {
+  min-width: 0;
   font: 400 9px/1.4 'JetBrains Mono', monospace;
   letter-spacing: 0.06em;
   color: #59626e;
@@ -1048,18 +1068,22 @@ input:focus {
 
 .bloc-card-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: 3px 8px;
 }
 
 .bloc-card-name {
-  font: 700 12px/1.2 'JetBrains Mono', monospace;
+  min-width: 0;
+  font: 700 12px/1.25 'JetBrains Mono', monospace;
   letter-spacing: 0.1em;
   color: #e6ecf3;
+  overflow-wrap: anywhere;
 }
 
 .bloc-card-creed {
+  flex: none;
   font: 500 8.5px/1 'JetBrains Mono', monospace;
   letter-spacing: 0.14em;
   color: #616b78;
@@ -1094,6 +1118,12 @@ input:focus {
 .panel-bloc {
   border-color: #333d5c;
   background: #101320;
+}
+
+/* A player-chosen banner can be far longer than a static heading. */
+.panel-bloc .panel-head h2 {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .bloc-tagline {
@@ -1214,9 +1244,10 @@ input:focus {
 
 .log-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 9px;
-  font: 500 9px/1 'JetBrains Mono', monospace;
+  gap: 4px 9px;
+  font: 500 9px/1.3 'JetBrains Mono', monospace;
   letter-spacing: 0.12em;
 }
 
@@ -1278,7 +1309,9 @@ input:focus {
   font-variant-numeric: tabular-nums;
 }
 
-.board {
+/* Named `standings`, not `board`: `.board` is the page column, and sharing the
+   name made this list inherit its fixed 460px width and overflow the panel. */
+.standings {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1287,7 +1320,7 @@ input:focus {
   gap: 5px;
 }
 
-.board-row {
+.standings-row {
   display: flex;
   align-items: baseline;
   gap: 10px;
@@ -1299,23 +1332,30 @@ input:focus {
   color: #8b95a3;
 }
 
-.board-row.is-mine {
+.standings-row.is-mine {
   border-color: #8fa2ff;
 }
 
-.board-rank {
+.standings-rank {
   color: #4c5561;
   font-weight: 700;
+  flex: none;
 }
 
-.board-name {
+/* min-width:0 lets a long banner shrink instead of forcing the row wider. */
+.standings-name {
   flex: 1;
+  min-width: 0;
   color: #d5dce6;
   font-weight: 700;
   letter-spacing: 0.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.board-num {
+.standings-num {
+  flex: none;
   color: #6b7686;
   font-variant-numeric: tabular-nums;
 }
@@ -1444,6 +1484,30 @@ input:focus {
     left: 50%;
     right: auto;
     transform: translateX(-50%);
+  }
+}
+
+/* Below this the three buttons cannot sit on one line — RESET WORLD ended up
+   clipped outside the bar and unreachable. */
+@media (max-width: 560px) {
+  .devbar {
+    left: 10px;
+    right: 10px;
+    transform: none;
+    max-width: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px;
+    overflow-x: visible;
+  }
+
+  .devbar-tag {
+    display: none;
+  }
+
+  .devbar button {
+    flex: 1 1 auto;
   }
 }
 

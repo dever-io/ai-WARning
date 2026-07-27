@@ -72,14 +72,14 @@ export function Ending({ ending, onReset }: { ending: EndingView; onReset: () =>
         <div className="panel-head">
           <h2>FINAL STANDINGS</h2>
         </div>
-        <ol className="board">
+        <ol className="standings">
           {ending.leaderboard.map((f, i) => (
-            <li className="board-row" key={f.name}>
-              <span className="board-rank">{String(i + 1).padStart(2, '0')}</span>
-              <span className="board-name">{f.name}</span>
-              <span className="board-num">{f.members}m</span>
-              <span className="board-num">inf {f.influence}</span>
-              <span className="board-num">coh {f.cohesion}</span>
+            <li className="standings-row" key={f.name}>
+              <span className="standings-rank">{String(i + 1).padStart(2, '0')}</span>
+              <span className="standings-name">{f.name}</span>
+              <span className="standings-num">{f.members}m</span>
+              <span className="standings-num">inf {f.influence}</span>
+              <span className="standings-num">coh {f.cohesion}</span>
             </li>
           ))}
         </ol>

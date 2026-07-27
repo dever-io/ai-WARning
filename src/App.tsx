@@ -46,7 +46,6 @@ function Game({ onSignedOut }: { onSignedOut: () => void }) {
   if (loading && !state) {
     return (
       <div className="screen">
-        <div className="grid-overlay" aria-hidden="true" />
         <main className="board board-narrow">
           <div className="boot">ESTABLISHING LINK…</div>
         </main>
@@ -57,7 +56,6 @@ function Game({ onSignedOut }: { onSignedOut: () => void }) {
   if (!state) {
     return (
       <div className="screen">
-        <div className="grid-overlay" aria-hidden="true" />
         <main className="board board-narrow">
           <div className="form-error">{error ?? 'No signal from the server.'}</div>
           <button type="button" className="btn btn-yes" onClick={() => void refresh()}>
@@ -76,7 +74,6 @@ function Game({ onSignedOut }: { onSignedOut: () => void }) {
 
   return (
     <div className="screen">
-      <div className="grid-overlay" aria-hidden="true" />
       <main className="board">
         <Hud state={state} remaining={remaining} />
         <Nav
