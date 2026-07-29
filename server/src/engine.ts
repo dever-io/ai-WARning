@@ -33,6 +33,9 @@ export interface UserRow {
   persona: string | null;
   faction_id: number | null;
   seen_day: number;
+  worlds: number;
+  ballots: number;
+  with_world: number;
 }
 
 export interface FactionRow {
@@ -55,6 +58,13 @@ const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 export const worldCardAt = (round: number): WorldCard => WORLD_DECK[round % WORLD_DECK.length];
 export const factionCardAt = (round: number): FactionCard =>
   FACTION_DECK[round % FACTION_DECK.length];
+
+/**
+ * Per-world RNG seed. Deliberately NOT epoch.id: a reset re-inserts row id 1
+ * every time, so keying off it made every world's crowd vote identically and
+ * every world end the same way. started_at is unique per world.
+ */
+export const worldSeed = (epoch: EpochRow) => epoch.started_at;
 
 export const dayOf = (round: number) => Math.floor(round / CHOICES_PER_DAY) + 1;
 export const slotOf = (round: number) => (round % CHOICES_PER_DAY) + 1;
@@ -149,7 +159,7 @@ export function ensureBotVotes(epoch: EpochRow, round: number): void {
     [];
 
   for (const bot of bots) {
-    const rand = mulberry32(hashSeed(epoch.id, round, bot.id));
+    const rand = mulberry32(hashSeed(worldSeed(epoch), round, bot.id));
     const faction = bot.faction_id ? factions.get(bot.faction_id) : undefined;
     let w = PERSONA_WEIGHTS[bot.persona] ?? PERSONA_WEIGHTS.pragmatist;
     if (faction) w = blend(w, doctrineWeights(faction.doctrine), 0.45);
@@ -178,7 +188,7 @@ export function ensureBotVotes(epoch: EpochRow, round: number): void {
 
   // Insert order drives the live reveal, and users are stored grouped by faction —
   // shuffle so the count streams in as a mixed crowd, not one bloc at a time.
-  const shuffle = mulberry32(hashSeed('order', epoch.id, round));
+  const shuffle = mulberry32(hashSeed('order', worldSeed(epoch), round));
   for (let i = ballots.length - 1; i > 0; i--) {
     const j = Math.floor(shuffle() * (i + 1));
     [ballots[i], ballots[j]] = [ballots[j], ballots[i]];
@@ -222,7 +232,7 @@ export function seedFactionBallots(epoch: EpochRow, round: number, factionId: nu
   const stamp = Date.now();
 
   for (const bot of bots) {
-    const rand = mulberry32(hashSeed(epoch.id, round, bot.id, 'topup'));
+    const rand = mulberry32(hashSeed(worldSeed(epoch), round, bot.id, 'topup'));
     if (rand() >= 0.84) continue;
     const loyal = bot.persona === 'guardian' || bot.persona === 'doomer' ? 1.6 : 0.7;
     const reach = bot.persona === 'accelerationist' || bot.persona === 'pragmatist' ? 1.6 : 0.7;
@@ -434,7 +444,11 @@ function resolveFactions(epoch: EpochRow, round: number, blocs: Bloc[], worldRes
 
     // A disciplined bloc draws in the unaffiliated.
     if (cohesion >= 55 && total > 0) {
-      recruitBots(faction.id, 1 + Math.floor(cohesion / 45), hashSeed(epoch.id, round, faction.id));
+      recruitBots(
+        faction.id,
+        1 + Math.floor(cohesion / 45),
+        hashSeed(worldSeed(epoch), round, faction.id),
+      );
     }
 
     db.prepare('UPDATE factions SET cohesion = ?, influence = ?, doctrine = ? WHERE id = ?').run(
@@ -451,15 +465,65 @@ function resolveFactions(epoch: EpochRow, round: number, blocs: Bloc[], worldRes
   }
 }
 
+/**
+ * Writes the finished world into the archive and folds each player's run into
+ * their lifetime record. Both outlive the reset that follows.
+ */
+function archiveEpoch(epoch: EpochRow, meters: Meters, endingKey: string, endedAt: number): void {
+  const results = db
+    .prepare('SELECT round, result, yes, no, mandate FROM round_results WHERE epoch_id = ? ORDER BY round')
+    .all(epoch.id) as unknown as Array<{ round: number; result: Dir; yes: number; no: number; mandate: number }>;
+
+  const players = db
+    .prepare(
+      `SELECT u.id AS id,
+              COUNT(v.id) AS ballots,
+              SUM(CASE WHEN v.dir = r.result THEN 1 ELSE 0 END) AS with_world
+         FROM users u
+         JOIN votes v ON v.user_id = u.id AND v.scope = 'world' AND v.epoch_id = ?
+         LEFT JOIN round_results r ON r.epoch_id = v.epoch_id AND r.round = v.round
+        WHERE u.is_bot = 0
+        GROUP BY u.id`,
+    )
+    .all(epoch.id) as unknown as Array<{ id: number; ballots: number; with_world: number | null }>;
+
+  const bump = db.prepare(
+    'UPDATE users SET worlds = worlds + 1, ballots = ballots + ?, with_world = with_world + ? WHERE id = ?',
+  );
+  for (const p of players) bump.run(p.ballots, p.with_world ?? 0, p.id);
+
+  const top = db
+    .prepare('SELECT name FROM factions ORDER BY influence DESC, cohesion DESC LIMIT 1')
+    .get() as unknown as { name: string } | undefined;
+
+  const nextN =
+    ((db.prepare('SELECT MAX(n) AS n FROM archive').get() as unknown as { n: number | null }).n ?? 0) + 1;
+
+  db.prepare(
+    `INSERT INTO archive (n, started_at, ended_at, ending_key, meters, rounds, humans, top_bloc)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    nextN,
+    epoch.started_at,
+    endedAt,
+    endingKey,
+    JSON.stringify(meters),
+    JSON.stringify(results.map((r) => ({ round: r.round, result: r.result }))),
+    players.length,
+    top?.name ?? null,
+  );
+}
+
 function endEpoch(epoch: EpochRow, meters: Meters, endingKey: string): void {
   // Real wall time, not the (skippable) epoch clock: this timestamp drives the
   // auto-restart, which must not be thrown off by a dev skip.
+  const endedAt = Date.now();
   db.prepare(`UPDATE epochs SET status = 'ended', ending_key = ?, ended_at = ? WHERE id = ?`).run(
     endingKey,
-    Date.now(),
+    endedAt,
     epoch.id,
   );
-  void meters;
+  archiveEpoch(epoch, meters, endingKey, endedAt);
 }
 
 function resolveRound(epoch: EpochRow, round: number): void {

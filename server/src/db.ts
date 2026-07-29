@@ -96,6 +96,18 @@ CREATE TABLE IF NOT EXISTS bot_rounds (
   round    INTEGER NOT NULL,
   PRIMARY KEY (epoch_id, round)
 );
+
+-- Survives resetWorld: this is the memory the game keeps between worlds.
+CREATE TABLE IF NOT EXISTS archive (
+  n          INTEGER PRIMARY KEY,
+  started_at INTEGER NOT NULL,
+  ended_at   INTEGER NOT NULL,
+  ending_key TEXT NOT NULL,
+  meters     TEXT NOT NULL,
+  rounds     TEXT NOT NULL,
+  humans     INTEGER NOT NULL DEFAULT 0,
+  top_bloc   TEXT
+);
 `);
 
 /** Adds a column to an already-created table on an existing database file. */
@@ -107,6 +119,10 @@ function ensureColumn(table: string, column: string, definition: string): void {
 }
 
 ensureColumn('users', 'seen_day', 'seen_day INTEGER NOT NULL DEFAULT 1');
+// Lifetime counters — a player keeps these when the world restarts.
+ensureColumn('users', 'worlds', 'worlds INTEGER NOT NULL DEFAULT 0');
+ensureColumn('users', 'ballots', 'ballots INTEGER NOT NULL DEFAULT 0');
+ensureColumn('users', 'with_world', 'with_world INTEGER NOT NULL DEFAULT 0');
 
 export function tx<T>(fn: () => T): T {
   db.exec('BEGIN IMMEDIATE');

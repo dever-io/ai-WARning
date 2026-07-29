@@ -1,10 +1,19 @@
-import { useState } from 'react';
-import { post, setToken } from '../api/client';
+import { useEffect, useState } from 'react';
+import { api, post, setToken } from '../api/client';
+import { WorldStrip, archiveSummary } from '../components/WorldStrip';
+import type { ArchiveView } from '../../shared/protocol';
 
 export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
   const [handle, setHandle] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [archive, setArchive] = useState<ArchiveView | null>(null);
+
+  useEffect(() => {
+    void api<ArchiveView>('/archive')
+      .then(setArchive)
+      .catch(() => setArchive(null));
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +33,9 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
     <div className="screen">
       <main className="board board-narrow">
         <header className="hud">
-          <span className="hud-counter">OPERATIONS ACCESS</span>
+          <span className="hud-counter">
+            {archive ? `WORLD ${archive.currentWorld}` : 'OPERATIONS ACCESS'}
+          </span>
           <span className="hud-brand">OVERRIDE</span>
         </header>
 
@@ -69,6 +80,13 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
             ENTER THE ROOM ▶
           </button>
         </form>
+
+        {archive && archive.worlds.length > 0 && (
+          <div className="wline">
+            <WorldStrip worlds={archive.worlds} />
+            <span className="wline-text">{archiveSummary(archive.worlds)}</span>
+          </div>
+        )}
 
         <div className="legend">
           Local demo — no password, no email. The callsign only separates you from the crowd.

@@ -20,7 +20,7 @@ import {
   type UserRow,
 } from './engine.ts';
 import { bootstrap, joinCode, resetWorld, ROUND_MS } from './seed.ts';
-import { DEV_TOOLS, buildState, factionSummary, memberCount } from './state.ts';
+import { DEV_TOOLS, buildArchive, buildState, factionSummary, memberCount } from './state.ts';
 import { CHOICES_PER_DAY, type Creed, type Dir, type Scope } from '../../shared/protocol.ts';
 import { mulberry32 } from './rng.ts';
 
@@ -103,6 +103,11 @@ app.post('/api/session', async (c) => {
   ).run(handle, token, Date.now());
   return c.json({ token, handle });
 });
+
+/* ------------------------------------------------------------------ archive */
+
+// Public: the sign-in screen shows the world count before anyone has a token.
+app.get('/api/archive', (c) => c.json(buildArchive()));
 
 /* -------------------------------------------------------------------- state */
 
@@ -314,15 +319,13 @@ dev.post('/skip', auth, async (c) => {
 });
 
 dev.post('/reset', auth, (c) => {
-  const handle = c.get('user').handle;
   resetWorld();
-  const token = randomUUID();
-  db.prepare(
-    `INSERT INTO users (handle, token, is_bot, persona, faction_id, created_at)
-     VALUES (?, ?, 0, NULL, NULL, ?)`,
-  ).run(handle, token, Date.now());
   resolveDue();
-  return c.json({ token, handle });
+  // The account survives the reset now, so the session carries straight over.
+  const user = db
+    .prepare('SELECT * FROM users WHERE id = ?')
+    .get(c.get('user').id) as unknown as UserRow;
+  return c.json(buildState(getEpoch(), user));
 });
 
 app.route('/api/dev', dev);

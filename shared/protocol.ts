@@ -124,6 +124,43 @@ export interface RoundRecord {
   /** Empty while the round is still sealed. */
   fx: Record<string, number>;
   myVote: Dir | null;
+  /**
+   * How past worlds settled this same dilemma. Only ever attached to rounds
+   * that are already decided, so it cannot inform a pending choice.
+   */
+  precedent: { worlds: number; yes: number; no: number } | null;
+}
+
+export type EndingTone = 'good' | 'mixed' | 'bad';
+
+/** One finished world, kept after its epoch is wiped. */
+export interface ArchivedWorld {
+  n: number;
+  endingKey: string;
+  endingTitle: string;
+  tone: EndingTone;
+  /** Final AI Power — the single number that says how the world went. */
+  pwr: number;
+  endedAt: number;
+  humans: number;
+  topBloc: string | null;
+}
+
+export interface ArchiveView {
+  /** The number this world will take when it ends. */
+  currentWorld: number;
+  worlds: ArchivedWorld[];
+  /** Ending key → how many worlds ended that way, most common first. */
+  tally: Array<{ key: string; title: string; tone: EndingTone; count: number }>;
+  /** Median final AI Power across finished worlds, or null when there are none. */
+  medianPwr: number | null;
+}
+
+/** A player's line across worlds — survives a restart. */
+export interface PlayerRecord {
+  worlds: number;
+  ballots: number;
+  withWorld: number;
 }
 
 export interface BriefingMeter {
@@ -148,11 +185,13 @@ export interface EndingView {
   key: string;
   title: string;
   verdict: string;
-  tone: 'good' | 'mixed' | 'bad';
+  tone: EndingTone;
   meters: MeterView[];
   personal: { title: string; line: string; withMajority: number; against: number; abstained: number };
   faction: { name: string; title: string; line: string } | null;
   leaderboard: Array<{ name: string; influence: number; cohesion: number; members: number }>;
+  /** Where this world's final AI Power sits among the finished ones. */
+  pwr: number;
 }
 
 export interface GameState {
@@ -187,6 +226,10 @@ export interface GameState {
   briefing: BriefingView | null;
   history: RoundRecord[];
   ending: EndingView | null;
+  /** Worlds that ended before this one. */
+  archive: ArchiveView;
+  /** This player's line across worlds. */
+  record: PlayerRecord;
   devTools: boolean;
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { TONE_COLOR, WorldStrip } from '../components/WorldStrip';
 import { ACCENT, DANGER, GOOD } from '../game/theme';
 import type { FactionSummary, GameState, RoundRecord } from '../../shared/protocol';
 
@@ -32,6 +33,31 @@ export function WorldLog({ state }: { state: GameState }) {
           </ol>
         )}
       </section>
+
+      {state.archive.worlds.length > 0 && (
+        <section className="panel">
+          <div className="panel-head">
+            <h2>PAST WORLDS</h2>
+            <span className="panel-note">
+              {state.archive.worlds.length} on record · you are world{' '}
+              {state.archive.currentWorld}
+            </span>
+          </div>
+          <ol className="standings">
+            {[...state.archive.worlds].reverse().map((w) => (
+              <li className="standings-row" key={w.n}>
+                <span className="standings-rank">{String(w.n).padStart(2, '0')}</span>
+                <span className="standings-name" style={{ color: TONE_COLOR[w.tone] }}>
+                  {w.endingTitle.replace(/[.]$/, '')}
+                </span>
+                <span className="standings-num">pwr {w.pwr}</span>
+                <span className="standings-num">{w.humans}p</span>
+              </li>
+            ))}
+          </ol>
+          <WorldStrip worlds={state.archive.worlds} />
+        </section>
+      )}
 
       <section className="panel">
         <div className="panel-head">
@@ -98,6 +124,7 @@ function LogRow({ record }: { record: RoundRecord }) {
       ) : (
         <div className="log-sealed">IMPACT SEALED · REPORTED TOMORROW MORNING</div>
       )}
+      {record.precedent && <Precedent p={record.precedent} result={record.result} />}
     </li>
   );
 }
@@ -105,4 +132,29 @@ function LogRow({ record }: { record: RoundRecord }) {
 function fxColor(key: string, delta: number): string {
   const good = key === 'pwr' ? delta < 0 : delta > 0;
   return good ? GOOD : DANGER;
+}
+
+/**
+ * How earlier worlds settled the same dilemma. Shown only on rounds that are
+ * already decided, so it can never tip a pending choice.
+ */
+function Precedent({
+  p,
+  result,
+}: {
+  p: { worlds: number; yes: number; no: number };
+  result: RoundRecord['result'];
+}) {
+  const same = result === 'yes' ? p.yes : p.no;
+  const verb = result === 'yes' ? 'authorized' : 'refused';
+  const rare = same * 2 < p.worlds;
+  return (
+    <div className="log-precedent">
+      {p.worlds} past world{p.worlds === 1 ? '' : 's'} faced this ·{' '}
+      <b style={{ color: rare ? ACCENT : '#7b8593' }}>
+        {same} of {p.worlds} {verb} it too
+      </b>
+      {rare && <span className="log-rare"> · this world broke with them</span>}
+    </div>
+  );
 }

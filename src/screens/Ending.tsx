@@ -1,15 +1,17 @@
 import { BarPanel } from '../components/BarPanel';
+import { TONE_COLOR, WorldStrip } from '../components/WorldStrip';
 import { buildBars } from '../game/bars';
-import { ACCENT, DANGER, FACTION, GOOD } from '../game/theme';
-import type { EndingView } from '../../shared/protocol';
+import { DANGER, FACTION, GOOD } from '../game/theme';
+import type { ArchiveView, EndingView, PlayerRecord } from '../../shared/protocol';
 
-const TONE_COLOR: Record<EndingView['tone'], string> = {
-  good: GOOD,
-  mixed: ACCENT,
-  bad: DANGER,
-};
+interface Props {
+  ending: EndingView;
+  archive: ArchiveView;
+  record: PlayerRecord;
+  onReset: () => void;
+}
 
-export function Ending({ ending, onReset }: { ending: EndingView; onReset: () => void }) {
+export function Ending({ ending, archive, record, onReset }: Props) {
   const bars = buildBars(
     ending.meters.map((m) => ({ ...m, danger: m.danger })),
     null,
@@ -33,9 +35,17 @@ export function Ending({ ending, onReset }: { ending: EndingView; onReset: () =>
         <BarPanel bars={bars} />
       </section>
 
+      <ArchivePanel ending={ending} archive={archive} />
+
       <section className="panel">
         <div className="panel-head">
           <h2>YOUR RECORD</h2>
+          {record.worlds > 0 && (
+            <span className="panel-note">
+              {record.worlds + 1}
+              {ordinal(record.worlds + 1)} world for you
+            </span>
+          )}
         </div>
         <div className="epilogue">
           <div className="epilogue-title">{ending.personal.title}</div>
@@ -51,6 +61,18 @@ export function Ending({ ending, onReset }: { ending: EndingView; onReset: () =>
               <b>{ending.personal.abstained}</b> abstained
             </span>
           </div>
+          {record.worlds > 0 && (
+            <div className="epilogue-stats epilogue-lifetime">
+              <span>ACROSS ALL WORLDS</span>
+              <span>
+                <b>{record.ballots}</b> ballots
+              </span>
+              <span>
+                <b>{record.ballots ? Math.round((record.withWorld / record.ballots) * 100) : 0}%</b>{' '}
+                with the world
+              </span>
+            </div>
+          )}
         </div>
       </section>
 
@@ -88,6 +110,83 @@ export function Ending({ ending, onReset }: { ending: EndingView; onReset: () =>
       <button type="button" className="btn btn-yes" onClick={onReset}>
         RUN A NEW EPOCH ▶
       </button>
+    </div>
+  );
+}
+
+function ordinal(n: number): string {
+  if (n % 100 >= 11 && n % 100 <= 13) return 'th';
+  return ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
+}
+
+/**
+ * The world you just finished, laid against the ones before it. One metric —
+ * final AI Power — because five bars per world would be a spreadsheet.
+ */
+function ArchivePanel({ ending, archive }: { ending: EndingView; archive: ArchiveView }) {
+  const past = archive.worlds.slice(0, -1).slice(-4).reverse();
+  const mine = archive.worlds.at(-1);
+  const yours = mine?.pwr ?? ending.pwr;
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2>THE ARCHIVE</h2>
+        <span className="panel-note">
+          {archive.worlds.length} world{archive.worlds.length === 1 ? '' : 's'} on record
+        </span>
+      </div>
+
+      <div className="arch-rows">
+        <ArchRow label="YOURS" pwr={yours} tone={ending.tone} title={ending.title} mine />
+        {past.map((w) => (
+          <ArchRow key={w.n} label={String(w.n)} pwr={w.pwr} tone={w.tone} title={w.endingTitle} />
+        ))}
+      </div>
+
+      {archive.medianPwr !== null && past.length > 0 && (
+        <div className="arch-note">
+          Median world ends at AI Power <b>{archive.medianPwr}</b>. Yours ended at <b>{yours}</b>.
+        </div>
+      )}
+
+      {archive.tally.length > 0 && (
+        <div className="arch-tally">
+          {archive.tally.map((t) => (
+            <span key={t.key} style={{ color: TONE_COLOR[t.tone] }}>
+              {t.title.replace(/[.]$/, '').toLowerCase()} <b>{t.count}</b>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <WorldStrip worlds={archive.worlds} />
+    </section>
+  );
+}
+
+function ArchRow({
+  label,
+  pwr,
+  tone,
+  title,
+  mine,
+}: {
+  label: string;
+  pwr: number;
+  tone: EndingView['tone'];
+  title: string;
+  mine?: boolean;
+}) {
+  return (
+    <div className={`arch-row${mine ? ' is-mine' : ''}`} title={title}>
+      <span className="arch-n">{label}</span>
+      <div className="meter-track">
+        <div className="meter-fill" style={{ width: `${pwr}%`, background: TONE_COLOR[tone] }} />
+        <div className="meter-stripes" />
+      </div>
+      <span className="arch-pwr">{pwr}</span>
+      <span className="arch-title">{title.replace(/[.]$/, '')}</span>
     </div>
   );
 }

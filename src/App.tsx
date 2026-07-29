@@ -87,7 +87,12 @@ function Game({ onSignedOut }: { onSignedOut: () => void }) {
 
         {tab === 'ops' &&
           (ended && state.ending ? (
-            <Ending ending={state.ending} onReset={() => void runDev(reset)} />
+            <Ending
+              ending={state.ending}
+              archive={state.archive}
+              record={state.record}
+              onReset={() => void runDev(reset)}
+            />
           ) : state.briefing ? (
             <Briefing
               briefing={state.briefing}

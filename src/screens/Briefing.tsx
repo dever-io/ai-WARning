@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ACCENT, DANGER, GOOD, NEUTRAL_DELTA } from '../game/theme';
+import { ACCENT, BAD_GHOST, DANGER, GOOD, GOOD_GHOST, NEUTRAL_DELTA } from '../game/theme';
+import { useCountTo } from '../hooks/useCountTo';
 import type { BriefingMeter, BriefingView } from '../../shared/protocol';
 
 interface Props {
@@ -41,28 +42,9 @@ export function Briefing({ briefing, onContinue, busy }: Props) {
         </div>
 
         <div className="report-meters">
-          {briefing.meters.map((m) => {
-            const delta = m.after - m.before;
-            const shown = settled ? m.after : m.before;
-            return (
-              <div className="report-row" key={m.key}>
-                <span className="meter-label">{m.label}</span>
-                <div className="meter-track">
-                  <div
-                    className="meter-fill report-fill"
-                    style={{ width: `${shown}%`, background: m.danger ? DANGER : ACCENT }}
-                  />
-                  <div className="meter-stripes" />
-                </div>
-                <span className="report-delta" style={{ color: deltaColor(m) }}>
-                  {delta === 0 ? '—' : delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}
-                </span>
-                <span className="report-value">
-                  <b>{shown}</b>
-                </span>
-              </div>
-            );
-          })}
+          {briefing.meters.map((m) => (
+            <ReportRow key={m.key} meter={m} settled={settled} />
+          ))}
         </div>
       </section>
 
@@ -115,6 +97,52 @@ export function Briefing({ briefing, onContinue, busy }: Props) {
       <button type="button" className="btn btn-yes" disabled={busy} onClick={onContinue}>
         BEGIN DAY {briefing.day} ▶
       </button>
+    </div>
+  );
+}
+
+/**
+ * Shows the journey, not just the destination: the fill sweeps from yesterday's
+ * value to today's, the travelled slice stays lit in the delta colour, and a
+ * tick marks where the meter stood before.
+ */
+function ReportRow({ meter, settled }: { meter: BriefingMeter; settled: boolean }) {
+  const delta = meter.after - meter.before;
+  const shown = settled ? meter.after : meter.before;
+  const counted = useCountTo(meter.before, meter.after);
+  const travelLeft = Math.min(meter.before, meter.after);
+  const travelWidth = Math.abs(delta);
+  const good = meter.danger ? delta < 0 : delta > 0;
+
+  return (
+    <div className="report-row">
+      <span className="meter-label">{meter.label}</span>
+      <div className="meter-track">
+        <div
+          className="meter-fill report-fill"
+          style={{ width: `${shown}%`, background: meter.danger ? DANGER : ACCENT }}
+        />
+        {delta !== 0 && (
+          <div
+            className={`report-travel${settled ? ' is-settled' : ''}`}
+            style={{
+              left: `${travelLeft}%`,
+              width: `${travelWidth}%`,
+              background: good ? GOOD_GHOST : BAD_GHOST,
+            }}
+          />
+        )}
+        {delta !== 0 && (
+          <div className="report-mark" style={{ left: `${meter.before}%` }} title="yesterday" />
+        )}
+        <div className="meter-stripes" />
+      </div>
+      <span className="report-delta" style={{ color: deltaColor(meter) }}>
+        {delta === 0 ? '—' : delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}
+      </span>
+      <span className="report-value">
+        <b>{counted}</b>
+      </span>
     </div>
   );
 }

@@ -98,8 +98,10 @@ export function joinCode(rand: () => number): string {
 }
 
 function seedWorld(): void {
-  const rand = mulberry32(hashSeed('override', 'v1'));
   const now = Date.now();
+  // Seeded from the world's own start time so each world gets its own crowd —
+  // different personas, different bloc sizes, different history.
+  const rand = mulberry32(hashSeed('override', now));
 
   const start: Record<string, number> = {};
   for (const m of METERS) start[m.key] = m.start;
@@ -130,7 +132,12 @@ function seedWorld(): void {
     factionIds.push({ id: Number(res.lastInsertRowid), share: f.share, creed: f.creed });
   }
 
-  const taken = new Set<string>();
+  // Human accounts outlive a reset, so their callsigns are already spoken for.
+  const taken = new Set<string>(
+    (db.prepare('SELECT handle FROM users').all() as unknown as Array<{ handle: string }>).map(
+      (u) => u.handle,
+    ),
+  );
   const insertUser = db.prepare(
     `INSERT INTO users (handle, token, is_bot, persona, faction_id, created_at)
      VALUES (?, NULL, 1, ?, ?, ?)`,
@@ -164,7 +171,11 @@ export function bootstrap(): boolean {
   return true;
 }
 
-/** Wipes everything — including human accounts — and reseeds a fresh epoch. */
+/**
+ * Wipes the world and seeds a fresh epoch. Human accounts and the archive are
+ * deliberately kept: a player's callsign and lifetime record are theirs across
+ * worlds, and the archive is the whole point of remembering.
+ */
 export function resetWorld(): void {
   tx(() => {
     db.exec(`
@@ -172,9 +183,11 @@ export function resetWorld(): void {
       DELETE FROM faction_results;
       DELETE FROM round_results;
       DELETE FROM votes;
-      DELETE FROM users;
+      DELETE FROM users WHERE is_bot = 1;
       DELETE FROM factions;
       DELETE FROM epochs;
+      -- Per-world state on a surviving player; the lifetime counters stay.
+      UPDATE users SET faction_id = NULL, seen_day = 1;
     `);
     seedWorld();
   });
