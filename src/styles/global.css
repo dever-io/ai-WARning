@@ -325,33 +325,27 @@ input {
   gap: 10px;
 }
 
-/* Slow enough to read as a verdict landing, not a value flicking over. */
-.report-fill {
-  transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+/* Taller than the in-play bars: this is the one moment the numbers matter. */
+.report-row .meter-track {
+  height: 16px;
 }
 
-/* The slice the meter travelled overnight: pulses while the fill sweeps, then
-   settles to a quiet band so the distance stays readable. */
+/* The ground that did not move. */
+.report-base {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+}
+
+/* The change itself — solid, not a ghost. A translucent band lost its fight
+   with both the bright fill underneath and the LED mask on top. */
 .report-travel {
   position: absolute;
   top: 0;
   bottom: 0;
-  animation: previewPulse 0.5s ease-in-out 3;
-  transition: opacity 0.6s ease;
-}
-
-.report-travel.is-settled {
-  opacity: 0.55;
-}
-
-/* Where the meter stood yesterday. */
-.report-mark {
-  position: absolute;
-  top: -2px;
-  bottom: -2px;
-  width: 1px;
-  background: #e6ecf3;
-  opacity: 0.55;
+  box-shadow: 0 0 10px -1px currentColor;
+  transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .report-delta {
@@ -361,12 +355,30 @@ input {
   font-variant-numeric: tabular-nums;
 }
 
+/* Reads "52 → 71": yesterday quietly, today in full. */
 .report-value {
-  width: 26px;
+  width: 62px;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 3px;
   font: 400 12px/1 'JetBrains Mono', monospace;
   color: #e6ecf3;
-  text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.report-value i {
+  font-style: normal;
+  color: #59626e;
+}
+
+.report-value em {
+  font-style: normal;
+  color: #454d59;
+}
+
+.report-value b {
+  font-weight: 700;
 }
 
 .report-log {
@@ -1513,6 +1525,23 @@ input:focus {
 @media (max-width: 420px) {
   .arch-title {
     display: none;
+  }
+
+  /* Give the report bar back the width the labels were taking. */
+  .report-row .meter-label {
+    width: 58px;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+  }
+
+  .report-value {
+    width: 54px;
+    font-size: 11px;
+  }
+
+  .report-delta {
+    width: 30px;
+    font-size: 11px;
   }
 }
 

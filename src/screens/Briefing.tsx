@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ACCENT, BAD_GHOST, DANGER, GOOD, GOOD_GHOST, NEUTRAL_DELTA } from '../game/theme';
+import { ACCENT, DANGER, GOOD, NEUTRAL_DELTA } from '../game/theme';
 import { useCountTo } from '../hooks/useCountTo';
 import type { BriefingMeter, BriefingView } from '../../shared/protocol';
 
@@ -102,38 +102,40 @@ export function Briefing({ briefing, onContinue, busy }: Props) {
 }
 
 /**
- * Shows the journey, not just the destination: the fill sweeps from yesterday's
- * value to today's, the travelled slice stays lit in the delta colour, and a
- * tick marks where the meter stood before.
+ * Shows the journey, not just the destination. The bar splits in two: the
+ * ground that held keeps the meter's own colour, and the change grows out of
+ * yesterday's mark in solid green or red — forward on a gain, backward on a
+ * loss. The boundary between the two is where the meter stood yesterday, so no
+ * separate marker is needed.
  */
 function ReportRow({ meter, settled }: { meter: BriefingMeter; settled: boolean }) {
   const delta = meter.after - meter.before;
-  const shown = settled ? meter.after : meter.before;
   const counted = useCountTo(meter.before, meter.after);
-  const travelLeft = Math.min(meter.before, meter.after);
-  const travelWidth = Math.abs(delta);
+  // The base is the ground that did not move; the segment is the change itself.
+  const base = Math.min(meter.before, meter.after);
+  const span = Math.abs(delta);
+  const grown = settled ? span : 0;
   const good = meter.danger ? delta < 0 : delta > 0;
+  const segment = good ? GOOD : DANGER;
+
+  // Gains advance from yesterday's mark; losses eat backwards from it.
+  const anchor =
+    delta > 0 ? { left: `${meter.before}%` } : { right: `${100 - meter.before}%` };
 
   return (
     <div className="report-row">
       <span className="meter-label">{meter.label}</span>
       <div className="meter-track">
         <div
-          className="meter-fill report-fill"
-          style={{ width: `${shown}%`, background: meter.danger ? DANGER : ACCENT }}
+          className="report-base"
+          style={{ width: `${base}%`, background: meter.danger ? DANGER : ACCENT }}
         />
-        {delta !== 0 && (
+        {span > 0 && (
           <div
-            className={`report-travel${settled ? ' is-settled' : ''}`}
-            style={{
-              left: `${travelLeft}%`,
-              width: `${travelWidth}%`,
-              background: good ? GOOD_GHOST : BAD_GHOST,
-            }}
+            className="report-travel"
+            /* color drives the glow in CSS via currentColor. */
+            style={{ ...anchor, width: `${grown}%`, background: segment, color: segment }}
           />
-        )}
-        {delta !== 0 && (
-          <div className="report-mark" style={{ left: `${meter.before}%` }} title="yesterday" />
         )}
         <div className="meter-stripes" />
       </div>
@@ -141,6 +143,8 @@ function ReportRow({ meter, settled }: { meter: BriefingMeter; settled: boolean 
         {delta === 0 ? '—' : delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}
       </span>
       <span className="report-value">
+        <i>{meter.before}</i>
+        <em>→</em>
         <b>{counted}</b>
       </span>
     </div>
