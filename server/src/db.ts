@@ -11,6 +11,10 @@ export const db = new DatabaseSync(DB_PATH);
 db.exec(`
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
+-- Two clients polling at once can both try to resolve a due round, and
+-- BEGIN IMMEDIATE would otherwise fail instantly with "database is locked"
+-- instead of waiting the moment out.
+PRAGMA busy_timeout = 5000;
 
 CREATE TABLE IF NOT EXISTS factions (
   id          INTEGER PRIMARY KEY,

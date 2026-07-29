@@ -249,14 +249,17 @@ app.post('/api/factions/join', auth, async (c) => {
 
   const user = c.get('user');
   if (user.faction_id === row.id) return c.json({ error: 'You already fly that banner.' }, 409);
+
+  resolveDue();
+  const epoch = getEpoch();
+  const round = openRound(epoch, epochNow(epoch));
   db.prepare('UPDATE users SET faction_id = ? WHERE id = ?').run(row.id, user.id);
-  // A pending faction ballot belongs to the bloc you were in when you cast it.
+  // Drop only a still-pending ballot cast for the bloc you just left. Scoped to
+  // the open round: earlier ballots are settled history and must survive.
   db.prepare(
-    `DELETE FROM votes WHERE user_id = ? AND scope = 'faction'
-       AND round = (SELECT round FROM votes WHERE user_id = ? AND scope = 'faction'
-                     ORDER BY round DESC LIMIT 1)
-       AND faction_id IS NOT ?`,
-  ).run(user.id, user.id, row.id);
+    `DELETE FROM votes
+      WHERE user_id = ? AND scope = 'faction' AND round = ? AND faction_id IS NOT ?`,
+  ).run(user.id, round, row.id);
   return c.json({ faction: factionSummary(row, row.id) });
 });
 

@@ -210,7 +210,9 @@ function rosterOf(faction: FactionRow, epoch: EpochRow, round: number): FactionM
 function historyFor(epoch: EpochRow, userId: number, currentDay: number): RoundRecord[] {
   const rows = db
     .prepare(
-      `SELECT r.round, r.result, r.yes, r.no, r.mandate, r.fx, r.meters,
+      // r.meters is deliberately not selected: it is the post-round snapshot,
+      // and a sealed round must not ship its numbers to the client at all.
+      `SELECT r.round, r.result, r.yes, r.no, r.mandate, r.fx,
               (SELECT dir FROM votes v
                 WHERE v.epoch_id = r.epoch_id AND v.round = r.round
                   AND v.scope = 'world' AND v.user_id = ?) AS my_vote
@@ -225,7 +227,6 @@ function historyFor(epoch: EpochRow, userId: number, currentDay: number): RoundR
     no: number;
     mandate: number;
     fx: string;
-    meters: string;
     my_vote: Dir | null;
   }>;
 
